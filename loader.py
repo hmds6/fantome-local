@@ -13,6 +13,7 @@ import uuid
 import zipfile
 from core import GAME, inspect, sha256, save_json
 from wad_builder import build_overlay
+from storage import session_root, cleanup_finished_sessions
 
 ROOT = Path(__file__).resolve().parent
 HOST = ROOT / 'third_party/ltk-v1.28.1/ltk_patcher_host.exe'
@@ -117,9 +118,10 @@ class Loader:
         self.started_at = time.time()
         self.verified = False
         self.redirected = []
-        self.session = self.lib.root / 'sessions' / (datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ') + '-' + uuid.uuid4().hex[:6])
+        self.session = session_root(self.lib.root) / (datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ') + '-' + uuid.uuid4().hex[:6])
         self.session.mkdir(parents=True)
         save_json(self.session / 'input.json', dict(mod_sha256=digest, game=str(GAME),
+                  build_only=build_only,
                   builder='native-python-wad-v3.4', builder_sha256=sha256(ROOT / 'wad_builder.py'), host=str(HOST), host_sha256=sha256(HOST),
                   dll_sha256=sha256(HOST.with_name('ltk_patcher_dll.dll')), flags=4))
         self.emit('building', 'Construction d’un overlay privé. League reste en lecture seule.')
@@ -145,6 +147,14 @@ class Loader:
             conflicts = [] if self.build_only else self.conflicts()
             if conflicts:
                 raise RuntimeError('Fermez le patcher concurrent ou la partie avant de démarrer : ' + ', '.join(conflicts))
+            if not self.build_only:
+                roots = {self.session.parent.resolve(), (self.lib.root / 'sessions').resolve()}
+                reclaimed = 0
+                for cache in roots:
+                    result = cleanup_finished_sessions(cache)
+                    reclaimed += result['freed_bytes']
+                if reclaimed:
+                    self.emit('building', f'Ancien cache temporaire nettoyé : {reclaimed / 1024**2:.0f} Mio libérés. Archives et journaux conservés.')
             # Stream only recognized payloads. No archive executables, symlinks,
             # thumbnails or arbitrary metadata files are used as runtime code.
             mods = self.session / 'mods'

@@ -160,8 +160,11 @@ def build_overlay(folder, game, overlay, cancel, progress):
     import shutil
     needed = sum(source.size for source, _ in readers.values()) + sum(len(x[0]) for x in changes.values()) * len(readers) + 512 * 1024**2
     overlay.mkdir(parents=True, exist_ok=True)
-    if shutil.disk_usage(overlay).free < needed:
-        raise ValueError('Espace libre insuffisant pour cet overlay.')
+    free = shutil.disk_usage(overlay).free
+    if free < needed:
+        raise ValueError(f'Espace insuffisant dans le cache {overlay.anchor} : {free / 1024**3:.2f} Gio libres, '
+                         f'{needed / 1024**3:.2f} Gio nécessaires. Dossier : {overlay.parent}. '
+                         'Les fichiers temporaires sont stockés sur le disque du cache, pas forcément sur celui de League.')
     from core import sha256
     identities = {str(path): sha256(path) for path in readers}
     reports = {}

@@ -24,3 +24,5 @@ __pycache__/
 verification*.json
 import-report.json
 compatibility.json
+settings.json
+storage-cleanup-report.json

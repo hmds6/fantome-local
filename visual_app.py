@@ -14,6 +14,7 @@ import customtkinter as ctk
 from core import Library, GAME
 from loader import Loader
 from ui_assets import Artwork, champion, destination
+from storage import session_root
 
 BG = '#0c0d15'
 PANEL = '#131521'
@@ -387,8 +388,7 @@ class VisualApp:
         self.notify('Arrêt demandé. Le jeu et les autres applications restent ouverts.')
 
     def open_sessions(self):
-        path = self.lib.root / 'sessions'
-        path.mkdir(exist_ok=True)
+        path = session_root(self.lib.root)
         os.startfile(path)
 
     def close(self):

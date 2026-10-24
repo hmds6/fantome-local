@@ -78,3 +78,15 @@ python -m unittest discover -s tests -v
 - `Launcher.cs` : lanceur Windows facultatif.
 
 Code original sous licence MIT. Aucune affiliation avec Riot Games, League Toolkit ou Celestial.
+
+## Emplacement du cache et espace disque
+
+Les archives importées et la bibliothèque restent dans data/. Les gros fichiers de session peuvent être placés sur un autre disque, en dehors de League, via un settings.json local non suivi par Git :
+
+```json
+{"cache_dir": "E:\\FantomeLocalCache"}
+```
+
+La variable d’environnement FANTOME_CACHE_DIR peut aussi définir cet emplacement. Les sessions seront créées dans le sous-dossier sessions/. Le bouton Ouvrir les journaux utilise cet emplacement.
+
+Avant un nouveau chargement, hors partie et sans patcher concurrent, les payloads régénérables des sessions terminées sont nettoyés. Les journaux, métadonnées et paquets importés sont conservés. Une erreur d’espace précise le disque du cache, la place libre et la place nécessaire ; ce n’est pas forcément le disque où League est installé.
