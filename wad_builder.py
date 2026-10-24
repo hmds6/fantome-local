@@ -1,4 +1,4 @@
-"""Local WAD v3.4 overlay writer; preserves Riot header provenance and stored data.
+"""WAD v3.3/v3.4 reader and v3.4 overlay writer; preserves source game data.
 
 Format references: LeagueToolkit cslol-manager toc.hpp; league-mod wad_builder.rs.
 No source code from those projects is copied here. Runtime stays in LTK host/DLL.
@@ -13,6 +13,7 @@ import xxhash
 import zstandard as zstd
 
 ENTRY = struct.Struct('<QIIIB3sQ')
+LEGACY_ENTRY = struct.Struct('<QIIIBBHQ')
 HEADER = 268
 COUNT_END = 272
 MAX_CHUNK = 512 * 1024**2
@@ -23,8 +24,9 @@ class Wad:
         self.size = self.path.stat().st_size
         with self.path.open('rb') as f:
             self.header = f.read(HEADER)
-            if self.header[:4] != b'RW\x03\x04':
-                raise ValueError('WAD v3.4 requis : ' + str(path))
+            if len(self.header) != HEADER or self.header[:4] not in (b'RW\x03\x03', b'RW\x03\x04'):
+                raise ValueError('Format WAD non pris en charge (v3.3 et v3.4 acceptés) : ' + str(path))
+            self.minor = self.header[3]
             n = struct.unpack('<I', f.read(4))[0]
             if n > 2000000 or COUNT_END + n * ENTRY.size > self.size:
                 raise ValueError('Table WAD invalide : ' + str(path))
@@ -32,12 +34,25 @@ class Wad:
         self.start = COUNT_END + n * ENTRY.size
         self.entries = {}
         previous = -1
-        for e in ENTRY.iter_unpack(toc):
+        records = ENTRY.iter_unpack(toc) if self.minor == 4 else LEGACY_ENTRY.iter_unpack(toc)
+        for e in records:
+            if self.minor == 3:
+                h, off, size, usize, flags, duplicate, index, checksum = e
+                if duplicate not in (0, 1):
+                    raise ValueError('Drapeau de duplication WAD v3.3 invalide.')
+                # v3.3: duplicate byte + little-endian u16 subchunk index.
+                # v3.4: high/low/middle bytes of a 24-bit subchunk index.
+                e = (h, off, size, usize, flags, bytes((0, index & 255, index >> 8)), checksum)
             h, off, size, usize, flags, sub, checksum = e
-            if h <= previous or off < self.start or off + size > self.size:
+            if ((self.minor == 4 and h <= previous) or h in self.entries
+                    or off < self.start or off + size > self.size):
                 raise ValueError('Entrée WAD invalide : ' + hex(h) + ' dans ' + str(path))
             self.entries[h] = e
             previous = h
+        if self.minor == 3:
+            # Legacy mod packers may emit an unordered TOC. The generated game
+            # overlay is sorted independently by build_one.
+            self.entries = dict(sorted(self.entries.items()))
 
     def raw(self, e):
         if e[2] > MAX_CHUNK:
@@ -76,6 +91,8 @@ def validate(path):
     return len(wad.entries)
 
 def build_one(source, target, overrides, cancel):
+    if source.minor != 4:
+        raise ValueError('L’archive de jeu source doit être en WAD v3.4 ; les mods v3.3 sont lus puis normalisés.')
     combined = sorted(set(source.entries) | set(overrides))
     new_start = COUNT_END + len(combined) * ENTRY.size
     delta = new_start - source.start

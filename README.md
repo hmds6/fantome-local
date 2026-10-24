@@ -60,7 +60,7 @@ Tous ces dossiers sont ignorés par Git. Les paquets de mods, ressources Riot, m
 
 La chaîne originale a été validée en entraînement avec Yasuo Héraut de la nuit sur le skin de base : overlay accepté, WAD redirigé, jeu entré en GAMESTATE_GAMELOOP, rendu confirmé par l’utilisateur. La refonte graphique conserve les modules de chargement et de construction.
 
-Les autres mods restent à valider individuellement. Le constructeur prend en charge les WAD v3.4 empaquetés ; les entrées RAW et certains encodages multi-chunks ne sont pas gérés. Les archives originales du jeu sont lues, leurs empreintes contrôlées et les fichiers générés conservés en dehors de League.
+Les autres mods restent à valider individuellement. Le constructeur lit les mods WAD v3.3 et v3.4 empaquetés et génère des overlays v3.4 ; les entrées RAW et certains encodages multi-chunks ne sont pas gérés. Les archives originales du jeu sont lues, leurs empreintes contrôlées et les fichiers générés conservés en dehors de League.
 
 Tests locaux sans League, sans mod personnel et sans injection :
 
@@ -90,3 +90,4 @@ Les archives importées et la bibliothèque restent dans data/. Les gros fichier
 La variable d’environnement FANTOME_CACHE_DIR peut aussi définir cet emplacement. Les sessions seront créées dans le sous-dossier sessions/. Le bouton Ouvrir les journaux utilise cet emplacement.
 
 Avant un nouveau chargement, hors partie et sans patcher concurrent, les payloads régénérables des sessions terminées sont nettoyés. Les journaux, métadonnées et paquets importés sont conservés. Une erreur d’espace précise le disque du cache, la place libre et la place nécessaire ; ce n’est pas forcément le disque où League est installé.
+
