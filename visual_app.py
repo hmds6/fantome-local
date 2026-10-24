@@ -37,11 +37,12 @@ class VisualApp:
         self.cards = {}
         self.view_name = 'library'
         self.library_mtime = self.lib.file.stat().st_mtime_ns if self.lib.file.exists() else 0
-        self.proof = {}
-        proof = ROOT / 'verification-game-success.json'
-        if proof.exists():
+        self.proofs = {}
+        for proof in ROOT.glob('verification-game-success*.json'):
             try:
-                self.proof = json.loads(proof.read_text(encoding='utf-8'))
+                record = json.loads(proof.read_text(encoding='utf-8'))
+                if record.get('visual_confirmed') is True and record.get('mod_sha256'):
+                    self.proofs[record['mod_sha256']] = record
             except ValueError:
                 pass
         ctk.set_appearance_mode('dark')
@@ -225,7 +226,7 @@ class VisualApp:
             button.configure(fg_color='#25213d' if key == name else 'transparent', text_color='#c5b5ff' if key == name else MUTED)
 
     def confirmed(self, mod):
-        return self.proof.get('visual_confirmed') is True and self.proof.get('mod_sha256') == mod['sha256']
+        return mod['sha256'] in self.proofs
 
     def refresh(self):
         for widget in self.gallery.winfo_children():
