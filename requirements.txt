@@ -1,0 +1,4 @@
+customtkinter==6.0.0
+Pillow==12.1.0
+xxhash==4.0.2
+zstandard==0.25.0
