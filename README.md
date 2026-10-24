@@ -16,7 +16,7 @@ Un seul mod est sélectionné à la fois. Les aperçus intégrés aux paquets so
 
 ## Lancer depuis les sources
 
-Windows et Python 3.13 sont requis. Depuis le dossier du projet :
+Windows et Python 3.13 ou 3.14 sont requis. Depuis le dossier du projet :
 
 ```powershell
 python -m pip install --target vendor -r requirements.txt
@@ -29,7 +29,7 @@ Le lanceur Windows optionnel se compile avec le compilateur .NET Framework déj�
 & "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:winexe /reference:System.Windows.Forms.dll /out:FantomeLocal.exe Launcher.cs
 ```
 
-Ce petit lanceur utilise le Python 3.13 installé pour l’utilisateur. Il n’embarque pas Python et n’est donc pas un exécutable autonome.
+Ce petit lanceur utilise le Python 3.14 (ou 3.13) installé pour l’utilisateur. Il n’embarque pas Python et n’est donc pas un exécutable autonome.
 
 ## Moteur de chargement
 
@@ -44,7 +44,7 @@ third_party/ltk-v1.28.1/ltk_patcher_dll.dll
 
 Ces binaires ne sont pas inclus dans le dépôt. Leurs conditions de licence sont distinctes du code de cette application. Ne pas mélanger des versions de host et de DLL. Voir [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-Le chemin du jeu configuré dans `core.py` est `E:\Riot Games\League of Legends`. Le runtime est limité au build PE effectivement testé, identifié dans `loader.py`. Après une mise à jour du jeu, le chargement est suspendu jusqu’à une nouvelle validation. Le moteur récent testé séparément a refusé un lanceur tiers avec VRF00000008 ; aucune compatibilité universelle n’est annoncée.
+Le chemin du jeu est détecté automatiquement dans `core.py` (métadonnées du Riot Client, puis `C:`, `D:` ou `E:\Riot Games\League of Legends`). Pour forcer un autre dossier, définir la variable d’environnement `FANTOME_GAME`. Le runtime est limité au build PE effectivement testé, identifié dans `loader.py`. Après une mise à jour du jeu, le chargement est suspendu jusqu’à une nouvelle validation. Le moteur récent testé séparément a refusé un lanceur tiers avec VRF00000008 ; aucune compatibilité universelle n’est annoncée.
 
 ## Données locales
 

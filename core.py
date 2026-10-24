@@ -8,7 +8,29 @@ import tempfile
 import zipfile
 from datetime import datetime, timezone
 
-GAME = Path(r'E:\Riot Games\League of Legends')
+def find_game():
+    """FANTOME_GAME override, then Riot Client metadata, then the default install folder."""
+    candidates = [os.environ.get('FANTOME_GAME')]
+    riot = Path(os.environ.get('PROGRAMDATA', r'C:\ProgramData')) / 'Riot Games'
+    settings = riot / 'Metadata/league_of_legends.live/league_of_legends.live.product_settings.yaml'
+    try:
+        for line in settings.read_text(encoding='utf-8').splitlines():
+            if line.startswith('product_install_full_path:'):
+                candidates.append(line.split(':', 1)[1].strip().strip('"'))
+    except OSError:
+        pass
+    try:
+        installs = json.loads((riot / 'RiotClientInstalls.json').read_text(encoding='utf-8'))
+        candidates += [p for p in installs.get('associated_client', {}) if 'league of legends' in p.lower()]
+    except (OSError, ValueError):
+        pass
+    candidates += [r'C:\Riot Games\League of Legends', r'D:\Riot Games\League of Legends', r'E:\Riot Games\League of Legends']
+    for c in candidates:
+        if c and (Path(c) / 'Game/League of Legends.exe').is_file():
+            return Path(c)
+    return Path(r'C:\Riot Games\League of Legends')
+
+GAME = find_game()
 LOGS = Path(os.environ['APPDATA']) / 'dev.leaguetoolkit.manager' / 'logs'
 
 def sha256(path):

@@ -10,8 +10,13 @@ static class Launcher {
         if (!created) { MessageBox.Show("Fantome Local est déjà ouvert.", "Fantome Local"); return; }
         try {
             string root = AppDomain.CurrentDomain.BaseDirectory;
-            string python = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Programs\Python\Python313\pythonw.exe");
-            if (!File.Exists(python)) throw new Exception("Python 3.13 local introuvable. Ce lanceur est prévu pour ce PC.");
+            string pythons = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Programs\Python");
+            string python = null;
+            foreach (string v in new[] { "Python314", "Python313" }) {
+                string p = Path.Combine(pythons, v + @"\pythonw.exe");
+                if (File.Exists(p)) { python = p; break; }
+            }
+            if (python == null) throw new Exception("Python 3.13 ou 3.14 local introuvable dans " + pythons + ".");
             var start = new ProcessStartInfo(python, "\"" + Path.Combine(root, "app.py") + "\"" + (Array.IndexOf(args, "--start") >= 0 ? " --start" : ""));
             start.WorkingDirectory = root;
             start.UseShellExecute = false;
