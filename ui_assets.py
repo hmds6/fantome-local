@@ -86,6 +86,7 @@ class Artwork:
     def __init__(self, library):
         self.library = library
         self.cache = {}
+        self.covers = {}
 
     def original(self, mod):
         key = mod['sha256']
@@ -136,5 +137,8 @@ class Artwork:
         return self.cache[key]
 
     def cover(self, mod, size):
-        image, label = self.original(mod)
-        return ImageOps.fit(image, size, method=Image.Resampling.LANCZOS, centering=(.5, .24)), label
+        key = (mod['sha256'], size)
+        if key not in self.covers:
+            image, label = self.original(mod)
+            self.covers[key] = ImageOps.fit(image, size, method=Image.Resampling.LANCZOS, centering=(.5, .24)), label
+        return self.covers[key]

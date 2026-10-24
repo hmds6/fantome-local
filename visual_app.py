@@ -23,6 +23,7 @@ TEXT = '#f1f0fc'
 MUTED = '#9398b5'
 PURPLE = '#8d6bff'
 GREEN = '#56d5ab'
+COLUMNS = 4
 
 class VisualApp:
     def __init__(self, window, data=None):
@@ -147,7 +148,12 @@ class VisualApp:
         self.gallery = ctk.CTkScrollableFrame(self.library_view, fg_color='transparent', corner_radius=0,
                                              scrollbar_button_color=LINE, scrollbar_button_hover_color=PURPLE)
         self.gallery.grid(row=1, column=0, sticky='nsew')
-        self.gallery.grid_columnconfigure((0, 1), weight=1, uniform='cards')
+        self.gallery.grid_columnconfigure(tuple(range(COLUMNS)), weight=1, uniform='cards')
+        # CustomTkinter scrolls 1 px per unit on Windows (20 px per wheel notch); make it 80 px.
+        self.gallery._parent_canvas.configure(yscrollincrement=4)
+        self.card_width = 0
+        # Size cards from the visible viewport: the inner frame grows with its cards and would feed back.
+        self.gallery._parent_canvas.bind('<Configure>', self.gallery_resized, add='+')
         self.search.trace_add('write', lambda *_: self.refresh())
 
     def make_details(self):
@@ -264,7 +270,7 @@ class VisualApp:
             self.make_card(mod, index)
         if not visible:
             self.label(self.gallery, 'Aucun mod trouvé.\nEssaie un autre champion ou ajoute un .fantome.', 15,
-                       colour=MUTED, justify='center').grid(row=0, column=0, columnspan=2, padx=30, pady=65)
+                       colour=MUTED, justify='center').grid(row=0, column=0, columnspan=COLUMNS, padx=30, pady=65)
         self.collection_count.configure(text=f"{len(mods)} mods dans ta collection  •  {len(visible)} affichés")
         if not any(m['sha256'] == self.focused for m in mods):
             self.focused = visible[0]['sha256'] if visible else None
@@ -273,26 +279,38 @@ class VisualApp:
         selected = next((m for m in mods if m['sha256'] == self.lib.state.get('selected')), None)
         self.active_name.configure(text='PROCHAIN CHARGEMENT  ·  ' + (selected['name'] if selected else 'Aucun mod activé'))
 
+    def cover_size(self):
+        width = max(130, (self.gallery._parent_canvas.winfo_width() - 10) // COLUMNS - 28)
+        return width, width * 9 // 16
+
+    def gallery_resized(self, _):
+        if abs(self.cover_size()[0] - self.card_width) > 12:
+            if getattr(self, 'resize_job', None):
+                self.window.after_cancel(self.resize_job)
+            self.resize_job = self.window.after(150, self.refresh)
+
     def make_card(self, mod, index):
         digest = mod['sha256']
         selected = digest == self.lib.state.get('selected')
         card = ctk.CTkFrame(self.gallery, fg_color=CARD, corner_radius=13, border_width=2,
                             border_color=PURPLE if digest == self.focused else LINE)
-        card.grid(row=index // 2, column=index % 2, sticky='nsew', padx=5, pady=(0, 12))
+        card.grid(row=index // COLUMNS, column=index % COLUMNS, sticky='nsew', padx=4, pady=(0, 8))
         card.grid_columnconfigure(0, weight=1)
-        photo, kind = self.art.cover(mod, (230, 125))
-        image = ctk.CTkImage(light_image=photo, dark_image=photo, size=(230, 125))
+        size = self.cover_size()
+        self.card_width = size[0]
+        photo, kind = self.art.cover(mod, size)
+        image = ctk.CTkImage(light_image=photo, dark_image=photo, size=size)
         self.images.append(image)
-        cover = self.label(card, '', image=image, height=125)
-        cover.grid(row=0, column=0, sticky='ew', padx=8, pady=(8, 4))
-        meta = self.label(card, champion(mod).upper() + ('   ·   SÉLECTIONNÉ' if selected else ''), 10, True,
+        cover = self.label(card, '', image=image, height=size[1])
+        cover.grid(row=0, column=0, sticky='ew', padx=6, pady=(6, 2))
+        meta = self.label(card, champion(mod).upper() + ('  ·  SÉLECTIONNÉ' if selected else ''), 9, True,
                           colour=GREEN if selected else '#b29bff', anchor='w')
-        meta.grid(row=1, column=0, padx=13, sticky='ew', pady=(5, 2))
-        title = self.label(card, mod['name'], 13, True, wraplength=222, justify='left', anchor='w', height=46)
-        title.grid(row=2, column=0, padx=13, sticky='ew')
-        badge = self.label(card, '● Testé en jeu' if self.confirmed(mod) else 'Skin cible : ' + destination(mod), 10,
-                           colour=GREEN if self.confirmed(mod) else MUTED, anchor='w')
-        badge.grid(row=3, column=0, sticky='ew', padx=13, pady=(4, 13))
+        meta.grid(row=1, column=0, padx=10, sticky='ew', pady=(3, 0))
+        title = self.label(card, mod['name'], 11, True, wraplength=size[0] - 4, justify='left', anchor='w', height=34)
+        title.grid(row=2, column=0, padx=10, sticky='ew')
+        badge = self.label(card, '● Testé en jeu' if self.confirmed(mod) else 'Skin cible : ' + destination(mod), 9,
+                           colour=GREEN if self.confirmed(mod) else MUTED, anchor='w', height=16)
+        badge.grid(row=3, column=0, sticky='ew', padx=10, pady=(0, 8))
         for widget in (card, cover, meta, title, badge):
             widget.bind('<Button-1>', lambda _, d=digest: self.select(d))
         self.cards[digest] = card
@@ -439,6 +457,7 @@ class VisualApp:
                 if kind == 'portraits':
                     if payload:
                         self.art.cache.clear()
+                        self.art.covers.clear()
                         self.refresh()
                     continue
                 last, errors = payload
