@@ -58,7 +58,8 @@ def inspect(path):
             raise ValueError('CRC ZIP incorrect : ' + bad)
         return dict(name=info['Name'], author=str(info.get('Author', '')),
                     description=str(info.get('Description', '')), version=str(info.get('Version', '')),
-                    wads=wads, raw_count=len(raw), entries=len(entries))
+                    wads=wads, raw_count=len(raw), entries=len(entries),
+                    target_skin_name=info.get('TargetSkinName') if isinstance(info.get('TargetSkinName'), str) else '')
 
 class Library:
     def __init__(self, root):

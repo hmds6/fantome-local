@@ -21,6 +21,8 @@ def champion(mod):
     return 'Autre'
 
 def destination(mod):
+    if mod.get('target_skin_name'):
+        return mod['target_skin_name']
     text = (' '.join([mod['name'], *mod.get('source_files', [])])).upper()
     if 'TRUE_DAMAGE' in text or 'TRUE DAMAGE' in text:
         return 'True Damage'
