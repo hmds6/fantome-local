@@ -12,7 +12,7 @@ Une interface sombre avec galerie de cartes, recherche, filtre par champion, ape
 4. Attendre la confirmation du chargeur, puis lancer un entraînement avec le champion et le skin de destination du mod.
 5. Vérifier le résultat sur la carte. Une redirection d’archive seule n’est pas une confirmation du rendu.
 
-Un seul mod est sélectionné à la fois. Les aperçus intégrés aux paquets sont utilisés en priorité. Lorsqu’un portrait de champion sert de remplacement, cette distinction est affichée dans le panneau de détail. Aucun portrait n’est téléchargé à l’exécution.
+Un seul mod est sélectionné à la fois. Les aperçus intégrés aux paquets sont utilisés en priorité. Lorsqu’un portrait de champion sert de remplacement, cette distinction est affichée dans le panneau de détail. Le champion est déduit du nom du WAD ; s’il manque, son splash art de base est téléchargé une fois depuis Data Dragon (CDN officiel Riot) puis gardé en cache local.
 
 ## Lancer depuis les sources
 
@@ -52,7 +52,7 @@ Le chemin du jeu est détecté automatiquement dans `core.py` (métadonnées du 
 - `data/library.json` : catalogue et mod sélectionné.
 - `data/sessions/` : overlays, fingerprints et journaux des tentatives.
 - `assets/previews/` : images extraites localement des paquets.
-- `assets/champions/` : portraits de remplacement facultatifs, fournis séparément par l’utilisateur.
+- `assets/champions/` : splash arts de remplacement téléchargés depuis Data Dragon et index des champions (`champions.json`).
 
 Tous ces dossiers sont ignorés par Git. Les paquets de mods, ressources Riot, moteurs binaires, journaux de jeu et fichiers personnels ne font pas partie de ce dépôt.
 

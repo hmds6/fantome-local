@@ -13,7 +13,7 @@ sys.path.insert(0, str(ROOT / 'vendor'))
 import customtkinter as ctk
 from core import Library, GAME
 from loader import Loader
-from ui_assets import Artwork, champion, destination
+from ui_assets import Artwork, champion, destination, fetch_portraits
 
 BG = '#0c0d15'
 PANEL = '#131521'
@@ -81,7 +81,19 @@ class VisualApp:
         self.show_view('library')
         self.write('Interface prête. Les aperçus, la bibliothèque et les journaux restent sur ce PC.')
         self.lib.log('UI_READY', 'Interface visuelle ; moteur de chargement inchangé.')
+        self.fetch_portraits()
         window.after(500, self.poll)
+
+    def fetch_portraits(self):
+        mods = list(self.lib.state['mods'])
+        def work():
+            try:
+                changed = fetch_portraits(mods)
+            except Exception as exc:
+                self.lib.log('PORTRAITS_FAILED', str(exc))
+                changed = False
+            self.queue.put(('portraits', changed))
+        threading.Thread(target=work, daemon=True).start()
 
     def label(self, parent, text='', size=13, bold=False, colour=TEXT, **kwargs):
         return ctk.CTkLabel(parent, text=text, text_color=colour,
@@ -423,7 +435,13 @@ class VisualApp:
             self.error(exc)
         try:
             while True:
-                _, (last, errors) = self.queue.get_nowait()
+                kind, payload = self.queue.get_nowait()
+                if kind == 'portraits':
+                    if payload:
+                        self.art.cache.clear()
+                        self.refresh()
+                    continue
+                last, errors = payload
                 self.busy = False
                 self.add_button.configure(state='normal')
                 self.library_mtime = self.lib.file.stat().st_mtime_ns
@@ -433,6 +451,7 @@ class VisualApp:
                 self.notify('Import terminé.' if not errors else 'Import terminé avec des erreurs ; consulte les journaux.', bool(errors))
                 for error in errors:
                     self.write(error)
+                self.fetch_portraits()
         except queue.Empty:
             pass
         active = self.busy or self.loader.active

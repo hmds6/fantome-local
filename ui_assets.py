@@ -1,24 +1,76 @@
-"""Local-only artwork: mod previews first, clearly labelled champion fallback."""
+"""Local artwork: mod previews first, then a cached Data Dragon champion splash, then a placeholder."""
 from pathlib import Path
 import hashlib
 import io
+import json
+import re
+import unicodedata
+import urllib.request
 import zipfile
 from PIL import Image, ImageOps, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parent
-CHAMPIONS = ('Yasuo', 'Yone', 'Irelia', 'Qiyana', 'Viego', 'Riven', 'Sett', 'Fiora', 'KSante', 'Nautilus', 'Renekton', 'Vayne')
+PORTRAITS = ROOT / 'assets/champions'
+INDEX = PORTRAITS / 'champions.json'
+DDRAGON = 'https://ddragon.leagueoflegends.com'
+
+def load_index():
+    try:
+        return json.loads(INDEX.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return {}
+
+CHAMPION_NAMES = load_index()  # Data Dragon id -> French display name
+
+def champion_id(mod):
+    """Data Dragon id taken from the WAD name (e.g. WAD/KSante.wad.client), else from the mod name."""
+    known = {k.casefold(): k for k in CHAMPION_NAMES}
+    for path in mod.get('wads', []):
+        parts = path.replace('\\', '/').split('/')
+        if len(parts) > 1 and parts[1].casefold().endswith('.wad.client'):
+            stem = parts[1][:-len('.wad.client')]
+            if not CHAMPION_NAMES or stem.casefold() in known:
+                return known.get(stem.casefold(), stem)
+    words = simplify_words(mod['name'])
+    for key, name in sorted(CHAMPION_NAMES.items(), key=lambda kv: -len(kv[1])):
+        if simplify_words(name) in words or simplify_words(key) in words:
+            return key
+    return None
+
+def simplify_words(text):
+    """' kai sa ' style form, so that short names like Vi only match whole words."""
+    text = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode().casefold()
+    return ' ' + ' '.join(re.findall(r'[a-z0-9]+', text)) + ' '
 
 def champion(mod):
-    for name in CHAMPIONS:
-        if name.casefold() in mod['name'].casefold():
-            return name
-    for path in mod.get('wads', []):
-        root = path.replace('\\', '/').split('/')[1:2]
-        if root:
-            for name in CHAMPIONS:
-                if root[0].casefold().startswith(name.casefold() + '.wad'):
-                    return name
-    return 'Autre'
+    key = champion_id(mod)
+    return CHAMPION_NAMES.get(key, key) if key else 'Autre'
+
+def fetch_portraits(mods, timeout=10):
+    """Download the champion index and missing splashes into assets/champions. Returns True if anything changed."""
+    global CHAMPION_NAMES
+    PORTRAITS.mkdir(parents=True, exist_ok=True)
+    changed = False
+    if not CHAMPION_NAMES:
+        with urllib.request.urlopen(DDRAGON + '/api/versions.json', timeout=timeout) as r:
+            version = json.load(r)[0]
+        with urllib.request.urlopen(f'{DDRAGON}/cdn/{version}/data/fr_FR/champion.json', timeout=timeout) as r:
+            data = json.load(r)['data']
+        CHAMPION_NAMES = {key: value['name'] for key, value in data.items()}
+        INDEX.write_text(json.dumps(CHAMPION_NAMES, ensure_ascii=False, indent=1), encoding='utf-8')
+        changed = True
+    for key in sorted({champion_id(m) for m in mods} - {None}):
+        target = PORTRAITS / (key + '.jpg')
+        if target.exists() or key not in CHAMPION_NAMES:
+            continue
+        try:
+            with urllib.request.urlopen(f'{DDRAGON}/cdn/img/champion/splash/{key}_0.jpg', timeout=timeout) as r:
+                img = Image.open(io.BytesIO(r.read())).convert('RGB')
+        except Exception:
+            continue
+        img.save(target, quality=90)
+        changed = True
+    return changed
 
 def destination(mod):
     text = (' '.join([mod['name'], *mod.get('source_files', [])])).upper()
@@ -68,7 +120,7 @@ class Artwork:
                         continue
         except (OSError, zipfile.BadZipFile):
             pass
-        portrait = ROOT / 'assets/champions' / (champion(mod) + '.jpg')
+        portrait = PORTRAITS / ((champion_id(mod) or 'Autre') + '.jpg')
         if portrait.exists():
             self.cache[key] = (Image.open(portrait).convert('RGB'), 'Portrait du champion • aperçu du mod indisponible')
             return self.cache[key]
